@@ -28,11 +28,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/codingdud/reactflow-mcp-server.git"
+    "url": "https://github.com/codingdud/reactflow-mcp.git"
   },
-  "homepage": "https://github.com/codingdud/reactflow-mcp-server#readme",
+  "homepage": "https://github.com/codingdud/reactflow-mcp#readme",
   "bugs": {
-    "url": "https://github.com/codingdud/reactflow-mcp-server/issues"
+    "url": "https://github.com/codingdud/reactflow-mcp/issues"
   },
   "author": "Orkait",
   "license": "MIT",
