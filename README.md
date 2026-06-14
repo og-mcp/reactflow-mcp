@@ -2,6 +2,8 @@
 
 MCP server that gives AI assistants accurate [React Flow](https://reactflow.dev) (`@xyflow/react`) v12 documentation, API references, enterprise patterns, and code generation.
 
+Repository: [og-mcp/reactflow-mcp](https://github.com/og-mcp/reactflow-mcp)
+
 
 
 ## Tools
@@ -29,10 +31,16 @@ zustand-store, undo-redo, drag-and-drop, auto-layout-dagre, auto-layout-elk, con
 
 ## Install
 
+### npm
+
+```bash
+npm i @og-mcp/reactflow-mcp
+```
+
 ### Claude Code
 
 ```bash
-claude mcp add reactflow-mcp -- npx -y @codingdud/reactflow-mcp
+claude mcp add reactflow-mcp -- npx -y @og-mcp/reactflow-mcp
 ```
 
 ### Claude Desktop / Cursor / Windsurf
@@ -53,8 +61,8 @@ Add to your MCP config:
 ### From source
 
 ```bash
-git clone https://github.com/codingdud/reactflow-mcp.git
-cd reactflow-mcp-server
+git clone https://github.com/og-mcp/reactflow-mcp.git
+cd reactflow-mcp
 npm install
 npm run build
 npm start

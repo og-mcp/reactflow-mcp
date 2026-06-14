@@ -1,6 +1,6 @@
 {
   "name": "@og-mcp/reactflow-mcp",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "MCP server that gives AI assistants accurate React Flow (@xyflow/react) v12 documentation, API references, patterns, and code generation",
   "main": "dist/index.js",
   "bin": {
