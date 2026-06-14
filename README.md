@@ -44,7 +44,7 @@ Add to your MCP config:
   "mcpServers": {
     "reactflow-mcp": {
       "command": "npx",
-      "args": ["-y", "@orkait-ai/reactflow-mcp"]
+      "args": ["-y", "@og-mcp/reactflow-mcp"]
     }
   }
 }
