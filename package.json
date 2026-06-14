@@ -1,6 +1,6 @@
 {
   "name": "@og-mcp/reactflow-mcp",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "MCP server that gives AI assistants accurate React Flow (@xyflow/react) v12 documentation, API references, patterns, and code generation",
   "main": "dist/index.js",
   "bin": {
@@ -28,11 +28,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/codingdud/reactflow-mcp.git"
+    "url": "https://github.com/og-mcp/reactflow-mcp.git"
   },
-  "homepage": "https://github.com/codingdud/reactflow-mcp#readme",
+  "homepage": "https://github.com/og-mcp/reactflow-mcp#readme",
   "bugs": {
-    "url": "https://github.com/codingdud/reactflow-mcp/issues"
+    "url": "https://github.com/og-mcp/reactflow-mcp/issues"
   },
   "author": "Orkait",
   "license": "MIT",
