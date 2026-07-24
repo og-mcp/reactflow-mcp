@@ -132,9 +132,9 @@ const useNodesDataHook: ApiEntry = {
   name: "useNodesData",
   kind: "hook",
   description:
-    "Subscribe to data changes of specific nodes by ID. More efficient than useNodes when you only need certain nodes' data.",
+    "Subscribe to data changes of specific nodes by ID. More efficient than useNodes when you only need certain nodes' data. Single-ID overload returns null when the node does not exist.",
   importPath: "import { useNodesData } from '@xyflow/react'",
-  returns: "Pick<Node, 'id' | 'data' | 'type'>[]",
+  returns: "DistributivePick<NodeType, 'id' | 'type' | 'data'> | null (single ID) or DistributivePick<NodeType, 'id' | 'type' | 'data'>[] (array of IDs)",
   usage: `const nodesData = useNodesData(['node-1', 'node-2']);
 // or single node:
 const nodeData = useNodesData('node-1');`,
@@ -178,11 +178,16 @@ const useConnectionHook: ApiEntry = {
   name: "useConnection",
   kind: "hook",
   description:
-    "Returns the current connection state during an active connection interaction. Returns null properties when no connection is active. Useful for colorizing handles based on validity.",
+    "Returns the current ConnectionState during a drag-to-connect interaction. All fields are null when no connection is active. Pass an optional selector function to subscribe to only a slice of state and prevent unnecessary re-renders.",
   importPath: "import { useConnection } from '@xyflow/react'",
-  returns: "ConnectionState",
-  usage: `const connection = useConnection();
-// connection.inProgress, connection.fromNode, connection.fromHandle, etc.`,
+  returns: "ConnectionState | SelectorReturn",
+  usage: `// Full connection state:
+const connection = useConnection();
+if (connection.inProgress) { /* style handles during drag */ }
+
+// With selector (prevents re-renders from unrelated state changes):
+const isConnecting = useConnection((c) => c.inProgress);
+const fromNodeId = useConnection((c) => c.fromNode?.id);`,
   examples: [
     {
       title: "Colorize handle during connection",
@@ -209,22 +214,29 @@ const useHandleConnectionsHook: ApiEntry = {
   name: "useHandleConnections",
   kind: "hook",
   description:
-    "Returns an array of connections for a specific handle. Re-renders when edge changes affect the handle.",
+    "DEPRECATED since v12.4.0. Use useNodeConnections instead. Returns connections for a specific handle.",
   importPath: "import { useHandleConnections } from '@xyflow/react'",
   returns: "HandleConnection[]",
-  usage: `const connections = useHandleConnections({ type: 'target', id: 'my-handle' });`,
+  usage: `// DEPRECATED — migrate to useNodeConnections:
+// Old:
+const connections = useHandleConnections({ type: 'target', id: 'my-handle' });
+// New:
+const connections = useNodeConnections({ handleType: 'target', handleId: 'my-handle' });`,
   examples: [],
+  tips: ["Deprecated in v12.4.0. Migrate to useNodeConnections which provides a superset of this functionality."],
   relatedApis: ["useNodeConnections", "useConnection", "Handle"],
 };
 
 const useNodeConnectionsHook: ApiEntry = {
   name: "useNodeConnections",
   kind: "hook",
-  description: "Returns an array of connections for a node. Can filter by handle type and ID.",
+  description: "Returns an array of connections for a node. Can filter by handle type and handle ID. Replaces the deprecated useHandleConnections since v12.4.0.",
   importPath: "import { useNodeConnections } from '@xyflow/react'",
   returns: "NodeConnection[]",
-  usage: `const connections = useNodeConnections({ type: 'target', handleId: 'input-a' });`,
+  usage: `const connections = useNodeConnections({ handleType: 'target', handleId: 'input-a' });
+// Note: handleId requires handleType — TypeScript enforces handleId: never when handleType is absent (since v12.11.0)`,
   examples: [],
+  tips: ["Since v12.11.0 TypeScript raises an error if handleId is provided without handleType."],
   relatedApis: ["useHandleConnections", "useConnection"],
 };
 
@@ -372,6 +384,22 @@ const useInternalNodeHook: ApiEntry = {
   relatedApis: ["useReactFlow", "useNodeId"],
 };
 
+const experimentalUseOnNodesChangeMiddlewareHook: ApiEntry = {
+  name: "experimental_useOnNodesChangeMiddleware",
+  kind: "hook",
+  description:
+    "Experimental hook (since v12.10.0) for intercepting and transforming node change events before they are applied to the store. Middleware-style interception of the onNodesChange pipeline. The API may change in future releases.",
+  importPath: "import { experimental_useOnNodesChangeMiddleware } from '@xyflow/react'",
+  returns: "void",
+  usage: `experimental_useOnNodesChangeMiddleware((changes) => {
+  // filter, transform, or log changes before they apply
+  return changes.filter((c) => c.type !== 'remove');
+});`,
+  examples: [],
+  tips: ["The experimental_ prefix signals the API may change — use with caution in production."],
+  relatedApis: ["applyNodeChanges", "useReactFlow"],
+};
+
 export const HOOK_APIS: ApiEntry[] = [
   useReactFlowHook,
   useNodesStateHook,
@@ -392,4 +420,5 @@ export const HOOK_APIS: ApiEntry[] = [
   useUpdateNodeInternalsHook,
   useKeyPressHook,
   useInternalNodeHook,
+  experimentalUseOnNodesChangeMiddlewareHook,
 ];

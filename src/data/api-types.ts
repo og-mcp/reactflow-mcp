@@ -17,14 +17,26 @@ const nodeType: ApiEntry = {
     { name: "connectable", type: "boolean", description: "Override global connectable setting." },
     { name: "deletable", type: "boolean", description: "Override global deletable setting." },
     { name: "parentId", type: "string", description: "Parent node ID for subflows/groups." },
-    { name: "extent", type: "CoordinateExtent | 'parent'", description: "Movement boundary. 'parent' constrains to parent node." },
+    { name: "extent", type: "CoordinateExtent | 'parent' | null", description: "Movement boundary. 'parent' constrains to parent node. null explicitly unsets a previously-set extent." },
     { name: "expandParent", type: "boolean", description: "Auto-expand parent when dragged to edge." },
     { name: "zIndex", type: "number", description: "Z-index for rendering order." },
     { name: "style", type: "CSSProperties", description: "Inline CSS styles." },
     { name: "className", type: "string", description: "CSS class name." },
     { name: "dragHandle", type: "string", description: "CSS selector for drag handle elements within the node." },
     { name: "origin", type: "NodeOrigin", description: "Origin point [0-1, 0-1] for positioning.", default: "[0, 0]" },
-    { name: "measured", type: "{ width?: number; height?: number }", description: "Read-only measured dimensions." },
+    { name: "measured", type: "{ width?: number; height?: number }", description: "Read-only measured dimensions after DOM layout." },
+    { name: "width", type: "number", description: "Node width as an inline style hint. NOT the measured dimension — that is at node.measured.width." },
+    { name: "height", type: "number", description: "Node height as an inline style hint." },
+    { name: "initialWidth", type: "number", description: "Initial width used before first DOM measurement." },
+    { name: "initialHeight", type: "number", description: "Initial height used before first DOM measurement." },
+    { name: "handles", type: "NodeHandle[]", description: "Pre-defined handle positions for SSR. Allows server rendering without DOM measurement." },
+    { name: "sourcePosition", type: "Position", description: "Default handle position for source handles (built-in node types)." },
+    { name: "targetPosition", type: "Position", description: "Default handle position for target handles (built-in node types)." },
+    { name: "focusable", type: "boolean", description: "Whether the node is focusable via keyboard." },
+    { name: "resizing", type: "boolean", description: "Read-only. True while the node is actively being resized." },
+    { name: "ariaLabel", type: "string", description: "Accessible label for the node." },
+    { name: "ariaRole", type: "AriaRole", description: "ARIA role for the node element. Added v12.7.0." },
+    { name: "domAttributes", type: "Omit<HTMLAttributes<HTMLDivElement>, 'id' | 'draggable' | 'style' | 'className' | 'role' | 'aria-label'>", description: "Custom DOM attributes applied to the node wrapper div. Added v12.7.0." },
   ],
   usage: `const node: Node = {
   id: '1',
@@ -81,6 +93,14 @@ const edgeType: ApiEntry = {
     { name: "markerEnd", type: "EdgeMarkerType", description: "Marker at edge end." },
     { name: "zIndex", type: "number", description: "Z-index." },
     { name: "interactionWidth", type: "number", description: "Width of invisible click target.", default: "20" },
+    { name: "className", type: "string", description: "CSS class applied to the edge element." },
+    { name: "focusable", type: "boolean", description: "Whether the edge is keyboard-focusable." },
+    { name: "ariaLabel", type: "string", description: "Accessible label for the edge." },
+    { name: "ariaRole", type: "AriaRole", description: "ARIA role for the edge element. Added v12.7.0." },
+    { name: "domAttributes", type: "object", description: "Custom DOM attributes for the edge wrapper. Added v12.7.0." },
+    { name: "labelBgPadding", type: "[number, number]", description: "Padding around the edge label background box." },
+    { name: "labelBgBorderRadius", type: "number", description: "Border radius of the edge label background box." },
+    { name: "pathOptions", type: "{ offset?: number; borderRadius?: number } | { curvature?: number }", description: "Variant-specific path options: borderRadius/offset for SmoothStep edges, curvature for Bezier edges." },
   ],
   usage: `const edge: Edge = {
   id: 'e1-2',
@@ -267,21 +287,27 @@ const reactFlowInstanceType: ApiEntry = {
     { name: "addEdges()", type: "(edge | edges) => void", description: "Add one or more edges." },
     { name: "getEdge()", type: "(id) => Edge | undefined", description: "Get edge by ID." },
     { name: "updateEdge()", type: "(id, update) => void", description: "Partially update an edge." },
-    { name: "deleteElements()", type: "(params) => Promise", description: "Delete nodes and edges." },
+    { name: "deleteElements()", type: "(params: DeleteElementsOptions) => Promise<{ deletedNodes: Node[]; deletedEdges: Edge[] }>", description: "Delete nodes and/or edges. Returns the items actually deleted (useful for cleanup)." },
     { name: "toObject()", type: "() => ReactFlowJsonObject", description: "Export flow as JSON." },
-    { name: "fitView()", type: "(options?) => Promise<boolean>", description: "Fit viewport to nodes." },
-    { name: "zoomIn()", type: "(options?) => Promise<boolean>", description: "Zoom in by 1.2x." },
-    { name: "zoomOut()", type: "(options?) => Promise<boolean>", description: "Zoom out by 1/1.2x." },
-    { name: "zoomTo()", type: "(level, options?) => Promise<boolean>", description: "Zoom to specific level." },
+    { name: "fitView()", type: "(options?: { padding?: number; includeHiddenNodes?: boolean; minZoom?: number; maxZoom?: number; duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear'; nodes?: ({ id: string })[] }) => Promise<boolean>", description: "Fit viewport to all nodes or a subset via nodes array. Since v12.5.0 works immediately after setNodes without requestAnimationFrame." },
+    { name: "zoomIn()", type: "(options?: { duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Zoom in by 1.2x." },
+    { name: "zoomOut()", type: "(options?: { duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Zoom out by 1/1.2x." },
+    { name: "zoomTo()", type: "(zoomLevel: number, options?: { duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Zoom to specific level." },
     { name: "getViewport()", type: "() => Viewport", description: "Get current viewport." },
-    { name: "setViewport()", type: "(viewport, options?) => Promise<boolean>", description: "Set viewport." },
-    { name: "setCenter()", type: "(x, y, options?) => Promise<boolean>", description: "Center viewport on position." },
-    { name: "fitBounds()", type: "(bounds, options?) => Promise<boolean>", description: "Fit viewport to rectangle." },
-    { name: "screenToFlowPosition()", type: "(pos) => XYPosition", description: "Convert screen coords to flow coords." },
-    { name: "flowToScreenPosition()", type: "(pos) => XYPosition", description: "Convert flow coords to screen coords." },
-    { name: "getIntersectingNodes()", type: "(node, partially?) => Node[]", description: "Find nodes intersecting with given node/rect." },
-    { name: "isNodeIntersecting()", type: "(node, area, partially?) => boolean", description: "Check if node intersects area." },
-    { name: "getNodesBounds()", type: "(nodes) => Rect", description: "Get bounding box of nodes." },
+    { name: "getZoom()", type: "() => number", description: "Get the current viewport zoom level." },
+    { name: "setViewport()", type: "(viewport: Viewport, options?: { duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Set viewport." },
+    { name: "setCenter()", type: "(x: number, y: number, options?: { zoom?: number; duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Center viewport on position." },
+    { name: "fitBounds()", type: "(bounds: Rect, options?: { padding?: number; duration?: number; ease?: (t: number) => number; interpolate?: 'smooth' | 'linear' }) => Promise<boolean>", description: "Fit viewport to rectangle." },
+    { name: "screenToFlowPosition()", type: "(clientPosition: XYPosition, options?: { snapToGrid?: boolean; snapGrid?: [number, number] }) => XYPosition", description: "Convert screen/client coords to canvas flow coords. Since v12.10.2 supports snapToGrid option." },
+    { name: "flowToScreenPosition()", type: "(pos: XYPosition) => XYPosition", description: "Convert flow coords to screen coords." },
+    { name: "getIntersectingNodes()", type: "(node: Node | Rect, partially?: boolean) => Node[]", description: "Find nodes intersecting with given node/rect." },
+    { name: "isNodeIntersecting()", type: "(node: Node | Rect, area: Rect, partially?: boolean) => boolean", description: "Check if node intersects area." },
+    { name: "getNodesBounds()", type: "(nodes: Node[] | string[]) => Rect", description: "Get bounding box of nodes." },
+    { name: "updateEdgeData()", type: "(id: string, dataUpdate: Partial<Record<string, unknown>> | ((edge: Edge) => Partial<Record<string, unknown>>), options?: { replace?: boolean }) => void", description: "Update the data attribute of an edge. Accepts a partial object or updater function. Mirrors updateNodeData." },
+    { name: "getInternalNode()", type: "(id: string) => InternalNode | undefined", description: "Get the internal node with internals.positionAbsolute by ID. Distinct from getNode() which returns the public Node type." },
+    { name: "getHandleConnections()", type: "({ type: HandleType; nodeId: string; id?: string | null }) => HandleConnection[]", description: "Get all active connections on a specific handle." },
+    { name: "getNodeConnections()", type: "({ type?: HandleType; nodeId: string; handleId?: string | null }) => NodeConnection[]", description: "Get all connections to a node, optionally filtered by handle type." },
+    { name: "viewportInitialized", type: "boolean", description: "True once the viewport has mounted. Guard fitView calls in useEffect with this property to avoid silent failures on first render." },
   ],
   usage: `const reactFlow = useReactFlow();
 
@@ -297,6 +323,205 @@ const json = reactFlow.toObject();`,
   relatedApis: ["useReactFlow", "ReactFlowProvider"],
 };
 
+const nodeChangeType: ApiEntry = {
+  name: "NodeChange",
+  kind: "type",
+  description: "Discriminated union of all node change event shapes emitted by onNodesChange. Types: 'position', 'dimensions', 'select', 'remove', 'add', 'reset', 'replace'.",
+  importPath: "import type { NodeChange } from '@xyflow/react'",
+  usage: `function onNodesChange(changes: NodeChange[]) {
+  setNodes((nds) => applyNodeChanges(changes, nds));
+}`,
+  examples: [],
+  relatedApis: ["applyNodeChanges", "ReactFlow"],
+};
+
+const edgeChangeType: ApiEntry = {
+  name: "EdgeChange",
+  kind: "type",
+  description: "Discriminated union of all edge change event shapes emitted by onEdgesChange. Types: 'select', 'remove', 'add', 'reset', 'replace'.",
+  importPath: "import type { EdgeChange } from '@xyflow/react'",
+  usage: `function onEdgesChange(changes: EdgeChange[]) {
+  setEdges((eds) => applyEdgeChanges(changes, eds));
+}`,
+  examples: [],
+  relatedApis: ["applyEdgeChanges", "ReactFlow"],
+};
+
+const xyPositionType: ApiEntry = {
+  name: "XYPosition",
+  kind: "type",
+  description: "Canonical 2D coordinate type: { x: number; y: number }. Used throughout React Flow for positions.",
+  importPath: "import type { XYPosition } from '@xyflow/react'",
+  usage: `const pos: XYPosition = { x: 100, y: 200 };`,
+  examples: [],
+  relatedApis: ["Node", "Viewport", "screenToFlowPosition"],
+};
+
+const fitViewOptionsType: ApiEntry = {
+  name: "FitViewOptions",
+  kind: "type",
+  description: "Options for fitView() calls. padding, includeHiddenNodes, minZoom, maxZoom, duration, ease, interpolate, and nodes (array of {id} to fit only a subset).",
+  importPath: "import type { FitViewOptions } from '@xyflow/react'",
+  props: [
+    { name: "padding", type: "number", description: "Padding ratio around all nodes.", default: "0.1" },
+    { name: "includeHiddenNodes", type: "boolean", description: "Include hidden nodes in the fit bounds.", default: "false" },
+    { name: "minZoom", type: "number", description: "Minimum zoom after fit." },
+    { name: "maxZoom", type: "number", description: "Maximum zoom after fit." },
+    { name: "duration", type: "number", description: "Animation duration in ms (0 = instant)." },
+    { name: "ease", type: "(t: number) => number", description: "Custom easing function. (Since v12.7.0)" },
+    { name: "interpolate", type: "'smooth' | 'linear'", description: "Interpolation mode. (Since v12.7.0)" },
+    { name: "nodes", type: "{ id: string }[]", description: "Fit only these nodes instead of all nodes." },
+  ],
+  usage: `fitView({ padding: 0.2, duration: 500, nodes: [{ id: 'node-1' }] });`,
+  examples: [],
+  relatedApis: ["ReactFlow", "ReactFlowInstance"],
+};
+
+const colorModeType: ApiEntry = {
+  name: "ColorMode",
+  kind: "type",
+  description: "'light' | 'dark' | 'system'. Value for the colorMode prop on ReactFlow. 'system' follows the OS-level dark mode preference.",
+  importPath: "import type { ColorMode } from '@xyflow/react'",
+  usage: `<ReactFlow colorMode="dark" ... />
+<ReactFlow colorMode="system" ... />`,
+  examples: [],
+  relatedApis: ["ReactFlow"],
+};
+
+const connectionStateType: ApiEntry = {
+  name: "ConnectionState",
+  kind: "type",
+  description: "Shape returned by useConnection(). All fields are null when no drag-to-connect is in progress.",
+  importPath: "import type { ConnectionState } from '@xyflow/react'",
+  props: [
+    { name: "inProgress", type: "boolean", description: "True while a connection drag is active." },
+    { name: "isValid", type: "boolean | null", description: "Whether the current hover target is a valid drop target." },
+    { name: "from", type: "XYPosition | null", description: "Starting position of the connection drag." },
+    { name: "fromHandle", type: "Handle | null", description: "Source handle details." },
+    { name: "fromNode", type: "Node | null", description: "Source node." },
+    { name: "fromPosition", type: "Position | null", description: "Source handle position side." },
+    { name: "toHandle", type: "Handle | null", description: "Target handle being hovered." },
+    { name: "toNode", type: "Node | null", description: "Target node being hovered." },
+    { name: "toPosition", type: "Position | null", description: "Target handle position side." },
+  ],
+  usage: `const { inProgress, isValid, fromNode } = useConnection();`,
+  examples: [],
+  relatedApis: ["useConnection", "Handle"],
+};
+
+const internalNodeType: ApiEntry = {
+  name: "InternalNode",
+  kind: "type",
+  description: "Internal node representation returned by getInternalNode() and useInternalNode(). Contains internals.positionAbsolute for absolute canvas coordinates (vs node.position which is parent-relative).",
+  importPath: "import type { InternalNode } from '@xyflow/react'",
+  props: [
+    { name: "internals.positionAbsolute", type: "XYPosition", description: "Absolute canvas position (not relative to parent)." },
+    { name: "internals.handleBounds", type: "NodeHandleBounds | undefined", description: "Computed handle positions." },
+    { name: "measured.width", type: "number | undefined", description: "Measured node width." },
+    { name: "measured.height", type: "number | undefined", description: "Measured node height." },
+  ],
+  usage: `const internalNode = useInternalNode('node-1');
+const absPos = internalNode?.internals.positionAbsolute;`,
+  examples: [],
+  relatedApis: ["useInternalNode", "ReactFlowInstance"],
+};
+
+const onDeleteType: ApiEntry = {
+  name: "OnDelete",
+  kind: "type",
+  description: "Type for the onDelete prop on ReactFlow. Called after nodes/edges are deleted.",
+  importPath: "import type { OnDelete } from '@xyflow/react'",
+  usage: `const onDelete: OnDelete = ({ nodes, edges }) => {
+  console.log('Deleted nodes:', nodes);
+  console.log('Deleted edges:', edges);
+};`,
+  examples: [],
+  relatedApis: ["OnBeforeDelete", "ReactFlow"],
+};
+
+const onBeforeDeleteType: ApiEntry = {
+  name: "OnBeforeDelete",
+  kind: "type",
+  description: "Type for the onBeforeDelete prop on ReactFlow. Return false (or a Promise resolving to false) to cancel the deletion.",
+  importPath: "import type { OnBeforeDelete } from '@xyflow/react'",
+  usage: `const onBeforeDelete: OnBeforeDelete = async ({ nodes, edges }) => {
+  const confirmed = await showConfirmDialog();
+  return confirmed;
+};`,
+  examples: [],
+  relatedApis: ["OnDelete", "ReactFlow"],
+};
+
+const isValidConnectionType: ApiEntry = {
+  name: "IsValidConnection",
+  kind: "type",
+  description: "Type for the isValidConnection prop on ReactFlow and Handle. Return false to prevent an edge from being created.",
+  importPath: "import type { IsValidConnection } from '@xyflow/react'",
+  usage: `const isValidConnection: IsValidConnection = (connection) => {
+  return connection.source !== connection.target; // prevent self-loops
+};`,
+  examples: [],
+  relatedApis: ["Handle", "ReactFlow", "Connection"],
+};
+
+const panelPositionType: ApiEntry = {
+  name: "PanelPosition",
+  kind: "type",
+  description: "'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'. Used for Controls, MiniMap, and Panel position prop.",
+  importPath: "import type { PanelPosition } from '@xyflow/react'",
+  usage: `<Panel position="top-right">...</Panel>`,
+  examples: [],
+  relatedApis: ["Panel", "Controls", "MiniMap"],
+};
+
+const handleTypeType: ApiEntry = {
+  name: "HandleType",
+  kind: "type",
+  description: "'source' | 'target'. Distinguishes outgoing from incoming handles.",
+  importPath: "import type { HandleType } from '@xyflow/react'",
+  usage: `const connections = useNodeConnections({ handleType: 'source' });`,
+  examples: [],
+  relatedApis: ["Handle", "useNodeConnections"],
+};
+
+const positionType: ApiEntry = {
+  name: "Position",
+  kind: "type",
+  description: "Enum-like for handle/toolbar sides. Values: Position.Top ('top'), Position.Right ('right'), Position.Bottom ('bottom'), Position.Left ('left').",
+  importPath: "import { Position } from '@xyflow/react'",
+  usage: `<Handle type="source" position={Position.Right} />
+<NodeToolbar position={Position.Top} />`,
+  examples: [],
+  relatedApis: ["Handle", "NodeToolbar"],
+};
+
+const rectType: ApiEntry = {
+  name: "Rect",
+  kind: "type",
+  description: "Axis-aligned bounding rectangle: { x, y, width, height }. Returned by getNodesBounds(), accepted by fitBounds() and isNodeIntersecting().",
+  importPath: "import type { Rect } from '@xyflow/react'",
+  usage: `const bounds: Rect = getNodesBounds(nodes);
+fitBounds(bounds, { padding: 0.1 });`,
+  examples: [],
+  relatedApis: ["getNodesBounds", "getViewportForBounds", "ReactFlowInstance"],
+};
+
+const reactFlowJsonObjectType: ApiEntry = {
+  name: "ReactFlowJsonObject",
+  kind: "type",
+  description: "Shape returned by toObject() / reactFlowInstance.toObject(). Contains nodes, edges, and viewport for serialization.",
+  importPath: "import type { ReactFlowJsonObject } from '@xyflow/react'",
+  props: [
+    { name: "nodes", type: "Node[]", description: "All nodes in the flow." },
+    { name: "edges", type: "Edge[]", description: "All edges in the flow." },
+    { name: "viewport", type: "Viewport", description: "Current viewport state." },
+  ],
+  usage: `const json: ReactFlowJsonObject = reactFlow.toObject();
+localStorage.setItem('flow', JSON.stringify(json));`,
+  examples: [],
+  relatedApis: ["ReactFlowInstance"],
+};
+
 export const TYPE_APIS: ApiEntry[] = [
   nodeType,
   edgeType,
@@ -305,4 +530,19 @@ export const TYPE_APIS: ApiEntry[] = [
   connectionType,
   viewportType,
   reactFlowInstanceType,
+  nodeChangeType,
+  edgeChangeType,
+  xyPositionType,
+  fitViewOptionsType,
+  colorModeType,
+  connectionStateType,
+  internalNodeType,
+  onDeleteType,
+  onBeforeDeleteType,
+  isValidConnectionType,
+  panelPositionType,
+  handleTypeType,
+  positionType,
+  rectType,
+  reactFlowJsonObjectType,
 ];

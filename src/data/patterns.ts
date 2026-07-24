@@ -465,7 +465,41 @@ For Tailwind + shadcn, map CSS variables:
 
   ssr: `# SSR / SSG Setup
 
-React Flow requires the DOM for measurement. For Next.js or other SSR frameworks:
+## v12 Recommended: True SSR with pre-defined dimensions
+
+React Flow v12 supports genuine server rendering by pre-defining \`width\`, \`height\`, and \`handles\` on nodes. This avoids layout shift on hydration and does not require disabling SSR:
+
+\`\`\`tsx
+import { ReactFlow, Position } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+// Pre-define dimensions and handles for SSR
+const nodes = [
+  {
+    id: '1',
+    position: { x: 0, y: 0 },
+    data: { label: 'Node 1' },
+    width: 150,
+    height: 40,
+    handles: [
+      { type: 'source', position: Position.Bottom },
+    ],
+  },
+];
+
+// No dynamic(ssr:false) needed — hydrates correctly
+export default function Page() {
+  return (
+    <div style={{ width: '100%', height: '100vh' }}>
+      <ReactFlow nodes={nodes} edges={[]} />
+    </div>
+  );
+}
+\`\`\`
+
+## Fallback: Dynamic import (no SSR)
+
+Still valid for legacy setups or when pre-defining dimensions is impractical:
 
 \`\`\`tsx
 'use client'; // Next.js app dir
@@ -479,20 +513,6 @@ export default function Page() {
     <div style={{ width: '100%', height: '100vh' }}>
       <Flow />
     </div>
-  );
-}
-\`\`\`
-
-Or with React.lazy:
-\`\`\`tsx
-import { Suspense, lazy } from 'react';
-const Flow = lazy(() => import('./Flow'));
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading flow...</div>}>
-      <Flow />
-    </Suspense>
   );
 }
 \`\`\``,
@@ -558,6 +578,257 @@ function Flow() {
 }
 \`\`\``,
 
+  "computing-flows": `# Reactive Computing Flows (Data Pipeline Pattern)
+
+Use \`useNodeConnections\`, \`useNodesData\`, and \`updateNodeData\` to build nodes that reactively compute based on connected inputs. This is the headline v12 data flow pattern.
+
+\`\`\`tsx
+import { useNodeConnections, useNodesData, useReactFlow } from '@xyflow/react';
+
+function ComputeNode({ id, data }: NodeProps) {
+  const { updateNodeData } = useReactFlow();
+
+  // Get connections coming into this node
+  const connections = useNodeConnections({ handleType: 'target' });
+  const sourceIds = connections.map((c) => c.source);
+
+  // Subscribe only to the data of connected source nodes
+  const sourcesData = useNodesData(sourceIds);
+
+  // Re-compute whenever upstream data changes
+  useEffect(() => {
+    const inputValues = sourcesData.map((n) => n?.data?.value ?? 0);
+    const result = inputValues.reduce((sum, v) => sum + v, 0);
+    updateNodeData(id, { value: result });
+  }, [sourcesData, id, updateNodeData]);
+
+  return (
+    <div className="p-4 border rounded bg-white">
+      <Handle type="target" position={Position.Left} />
+      <div>Sum: {data.value}</div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+}
+\`\`\``,
+
+  "connection-state": `# Colorize Handles During Connection Drag
+
+Use \`useConnection\` to style handles dynamically while the user drags a connection line:
+
+\`\`\`tsx
+import { Handle, Position, useConnection, useNodeId } from '@xyflow/react';
+
+function SmartHandle({ type, position, id }: { type: 'source' | 'target'; position: Position; id?: string }) {
+  const nodeId = useNodeId();
+  // Subscribe only to inProgress to avoid re-renders on position changes
+  const inProgress = useConnection((c) => c.inProgress);
+  const fromNodeId = useConnection((c) => c.fromNode?.id);
+
+  // Highlight target handles when a drag is active (but not from this node)
+  const isHighlighted = inProgress && type === 'target' && fromNodeId !== nodeId;
+
+  return (
+    <Handle
+      type={type}
+      position={position}
+      id={id}
+      style={{
+        background: isHighlighted ? '#22c55e' : '#6b7280',
+        border: isHighlighted ? '2px solid #16a34a' : '2px solid #374151',
+        transition: 'background 0.15s',
+      }}
+    />
+  );
+}
+\`\`\``,
+
+  "controlled-viewport": `# Controlled Viewport
+
+Use the \`viewport\` + \`onViewportChange\` props (v12.0.0) for a fully-controlled viewport. Enables animated transitions driven by external state, storing viewport in URL params, or synchronized multi-panel views.
+
+\`\`\`tsx
+function ControlledFlow() {
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+
+  return (
+    <>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        viewport={viewport}
+        onViewportChange={setViewport}
+      />
+      <button onClick={() => setViewport({ x: 0, y: 0, zoom: 1.5 })}>
+        Zoom to 150%
+      </button>
+    </>
+  );
+}
+\`\`\`
+
+**Sync to URL params:**
+\`\`\`tsx
+const [viewport, setViewport] = useState(() => {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    x: Number(params.get('vx') ?? 0),
+    y: Number(params.get('vy') ?? 0),
+    zoom: Number(params.get('vz') ?? 1),
+  };
+});
+
+const onViewportChange = (vp: Viewport) => {
+  setViewport(vp);
+  const params = new URLSearchParams({ vx: String(vp.x), vy: String(vp.y), vz: String(vp.zoom) });
+  window.history.replaceState(null, '', '?' + params.toString());
+};
+\`\`\``,
+
+  "edge-toolbar": `# Edge Toolbar (v12.9.0)
+
+\`EdgeToolbar\` renders action elements anchored to an edge's midpoint, similar to \`NodeToolbar\` for nodes. It does not scale with the viewport.
+
+\`\`\`tsx
+import { EdgeToolbar, BaseEdge, getBezierPath } from '@xyflow/react';
+import type { EdgeProps } from '@xyflow/react';
+
+function ActionEdge({
+  id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
+}: EdgeProps) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
+  });
+  const { setEdges } = useReactFlow();
+
+  return (
+    <>
+      <BaseEdge path={edgePath} />
+      <EdgeToolbar edgeId={id} x={labelX} y={labelY}>
+        <div className="flex gap-1 bg-white shadow rounded px-2 py-1 text-xs">
+          <button onClick={() => console.log('edit', id)}>Edit</button>
+          <button onClick={() => setEdges((es) => es.filter((e) => e.id !== id))}>
+            Delete
+          </button>
+        </div>
+      </EdgeToolbar>
+    </>
+  );
+}
+\`\`\``,
+
+  "before-delete": `# Confirm Before Delete (onBeforeDelete)
+
+Use \`onBeforeDelete\` (v12.0.0) to intercept and conditionally cancel deletion. Return \`false\` or a Promise resolving to \`false\` to cancel.
+
+\`\`\`tsx
+function Flow() {
+  const onBeforeDelete = useCallback(async ({ nodes, edges }) => {
+    if (nodes.some((n) => n.data?.protected)) {
+      const ok = window.confirm('Delete protected node?');
+      return ok;
+    }
+    return true;
+  }, []);
+
+  return (
+    <ReactFlow
+      onBeforeDelete={onBeforeDelete}
+      onDelete={({ nodes, edges }) => {
+        console.log('Deleted:', nodes.length, 'nodes,', edges.length, 'edges');
+      }}
+    />
+  );
+}
+\`\`\``,
+
+  "typescript-strict": `# TypeScript Strict Mode Setup
+
+## Define node and edge types
+\`\`\`tsx
+import type { Node, Edge, NodeProps } from '@xyflow/react';
+
+// Step 1: Define data + discriminant for each custom node
+type TextNode = Node<{ text: string }, 'text'>;
+type NumberNode = Node<{ value: number }, 'number'>;
+
+// Step 2: Create a union type
+type AppNode = TextNode | NumberNode;
+type AppEdge = Edge<{ weight?: number }, 'weighted'> | Edge;
+
+// Step 3: Type useReactFlow with your union
+const { getNodes, setNodes } = useReactFlow<AppNode, AppEdge>();
+
+// Step 4: Type custom node components
+function TextNodeComponent({ data }: NodeProps<TextNode>) {
+  return <div>{data.text}</div>;
+}
+
+// Step 5: Define nodeTypes outside the component
+const nodeTypes = {
+  text: TextNodeComponent,
+} satisfies NodeTypes;
+\`\`\`
+
+## useNodeConnections v12.11.0 constraint
+\`\`\`tsx
+// TypeScript error — handleId without handleType:
+useNodeConnections({ handleId: 'my-handle' });
+
+// Correct:
+useNodeConnections({ handleType: 'target', handleId: 'my-handle' });
+\`\`\``,
+
+  "accessibility": `# Accessibility (a11y) — v12.7.0
+
+React Flow v12.7.0 added per-node/edge ARIA attributes and keyboard auto-pan.
+
+\`\`\`tsx
+// Per-node ARIA attributes
+const nodes = [
+  {
+    id: '1',
+    position: { x: 0, y: 0 },
+    data: { label: 'Server' },
+    ariaLabel: 'Server node — click to view details',
+    ariaRole: 'button',
+    domAttributes: { 'data-testid': 'server-node' },
+  },
+];
+
+// Customize aria-label text on the flow wrapper
+<ReactFlow
+  ariaLabelConfig={{
+    nodes: (n) => \`Node: \${n.data.label}\`,
+    edges: (e) => \`Connection from \${e.source} to \${e.target}\`,
+  }}
+  // Pan viewport to bring tab-focused node into view
+  autoPanOnNodeFocus
+  // Disable React Flow keyboard handling if your app manages it
+  // disableKeyboardA11y
+/>
+\`\`\``,
+
+  "mobile-touch": `# Mobile & Touch Interaction
+
+\`\`\`tsx
+<ReactFlow
+  // Two-finger pan (button code 1 = right mouse / touch pan)
+  panOnDrag={[1, 2]}
+  // Pinch to zoom
+  zoomOnPinch
+  // Prevent accidental connection starts on touch
+  connectionDragThreshold={10}
+  // Allow scroll-wheel pan on desktop
+  panOnScroll
+  panOnScrollMode="free"
+  // Prevent page scroll while interacting with the canvas
+  preventScrolling
+/>
+\`\`\`
+
+**Note:** \`panOnDrag={[1, 2]}\` enables pan via right-click drag (button 1) and middle-click drag (button 2), leaving left-click (button 0) for node interaction and selection.`,
+
   "custom-connection-line": `# Custom Connection Line
 
 \`\`\`tsx
@@ -603,8 +874,8 @@ function LayoutFlow({ initialNodes, initialEdges }) {
     const { nodes: layouted } = getLayoutedElements(nodes, edges, 'TB');
     setNodes(layouted);
 
-    // Fit after layout settles
-    requestAnimationFrame(() => fitView({ duration: 300 }));
+    // v12.5.0+: fitView works immediately after setNodes — no requestAnimationFrame needed
+    fitView({ duration: 300 });
   }, [initialized]);
 
   return (

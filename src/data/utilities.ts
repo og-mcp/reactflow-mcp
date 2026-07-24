@@ -4,13 +4,19 @@ const addEdgeUtil: ApiEntry = {
   name: "addEdge",
   kind: "utility",
   description:
-    "Convenience function to add a new edge to an array. Validates and prevents duplicates.",
+    "Add a new edge to an edges array. Validates and prevents duplicate source/target/handle combinations. Accepts optional third argument for custom edge ID generation and error handling.",
   importPath: "import { addEdge } from '@xyflow/react'",
   returns: "Edge[]",
   usage: `const onConnect = useCallback(
   (connection) => setEdges((eds) => addEdge(connection, eds)),
   [setEdges],
-);`,
+);
+
+// With options (custom ID + error handler):
+addEdge(connection, edges, {
+  getEdgeId: ({ source, target }) => \`\${source}-\${target}\`,
+  onError: (code, msg) => console.error(code, msg),
+});`,
   examples: [],
   relatedApis: ["ReactFlow", "useEdgesState"],
 };
@@ -67,8 +73,11 @@ const getSmoothStepPathUtil: ApiEntry = {
   usage: `const [edgePath, labelX, labelY] = getSmoothStepPath({
   sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition,
-  borderRadius: 8, // rounded corners
-  offset: 25, // step offset
+  borderRadius: 8,    // rounded corners
+  offset: 25,         // step offset from node
+  stepPosition: 0.5,  // 0 = bend near source, 1 = bend near target
+  centerX: undefined, // override midpoint X
+  centerY: undefined, // override midpoint Y
 });`,
   examples: [],
   relatedApis: ["getBezierPath", "getStraightPath"],
@@ -79,7 +88,7 @@ const getStraightPathUtil: ApiEntry = {
   kind: "utility",
   description: "Calculates a straight line path between two points.",
   importPath: "import { getStraightPath } from '@xyflow/react'",
-  returns: "[path, labelX, labelY]",
+  returns: "[path: string, labelX: number, labelY: number, offsetX: number, offsetY: number]",
   usage: `const [edgePath, labelX, labelY] = getStraightPath({
   sourceX, sourceY, targetX, targetY,
 });`,
@@ -103,7 +112,7 @@ const getSimpleBezierPathUtil: ApiEntry = {
 const getConnectedEdgesUtil: ApiEntry = {
   name: "getConnectedEdges",
   kind: "utility",
-  description: "Given nodes and all edges, returns edges that connect any of the given nodes together.",
+  description: "Returns all edges where either the source or target node ID appears in the given nodes array. Includes edges to nodes outside the provided set.",
   importPath: "import { getConnectedEdges } from '@xyflow/react'",
   returns: "Edge[]",
   usage: `const connected = getConnectedEdges(selectedNodes, allEdges);`,
@@ -136,10 +145,16 @@ const getOutgoersUtil: ApiEntry = {
 const getNodesBoundsUtil: ApiEntry = {
   name: "getNodesBounds",
   kind: "utility",
-  description: "Returns the bounding box containing all given nodes. Useful with getViewportForBounds.",
+  description: "Returns the bounding rectangle containing all given nodes. Accepts node objects, InternalNode objects, or plain string IDs (requires nodeLookup when using IDs). Previously named getRectOfNodes in v11.",
   importPath: "import { getNodesBounds } from '@xyflow/react'",
   returns: "Rect",
-  usage: `const bounds = getNodesBounds(nodes);`,
+  usage: `const bounds = getNodesBounds(nodes);
+
+// With custom nodeOrigin:
+const bounds = getNodesBounds(nodes, { nodeOrigin: [0.5, 0.5] });
+
+// With node IDs (requires nodeLookup from store):
+const bounds = getNodesBounds(['node-1', 'node-2'], { nodeLookup });`,
   examples: [],
   relatedApis: ["getViewportForBounds"],
 };

@@ -48,7 +48,7 @@ const reactFlowComponent: ApiEntry = {
     { name: "connectionMode", type: "ConnectionMode", description: "'strict' only source→target; 'loose' allows source→source too.", default: "'strict'" },
     { name: "connectionLineType", type: "ConnectionLineType", description: "Path type for connection lines.", default: "ConnectionLineType.Bezier" },
     { name: "connectionRadius", type: "number", description: "Drop radius for connection lines.", default: "20" },
-    { name: "selectionMode", type: "SelectionMode", description: "'full' or 'partial' node selection in selection box.", default: "'full'" },
+    { name: "selectionMode", type: "SelectionMode", description: "'full' requires node fully inside selection box; 'partial' selects any node touching the box.", default: "'partial'" },
     { name: "colorMode", type: "ColorMode", description: "Color scheme: 'light', 'dark', or 'system'.", default: "'light'" },
     { name: "deleteKeyCode", type: "KeyCode | null", description: "Key to delete selected elements.", default: "'Backspace'" },
     { name: "selectionKeyCode", type: "KeyCode | null", description: "Key to draw selection box.", default: "'Shift'" },
@@ -63,6 +63,26 @@ const reactFlowComponent: ApiEntry = {
     { name: "reconnectRadius", type: "number", description: "Radius for edge reconnection trigger.", default: "10" },
     { name: "autoPanOnConnect", type: "boolean", description: "Pan viewport when creating connections near edge.", default: "true" },
     { name: "autoPanOnNodeDrag", type: "boolean", description: "Pan viewport when dragging nodes near edge.", default: "true" },
+    { name: "autoPanOnSelection", type: "boolean", description: "Pan viewport when selection rectangle is dragged near the edge. (Since v12.11.0)", default: "true" },
+    { name: "autoPanSpeed", type: "number", description: "Speed of auto-panning when dragging nodes, connections, or selections near the canvas edge.", default: "15" },
+    { name: "autoPanOnNodeFocus", type: "boolean", description: "Pans viewport to bring a Tab-focused node into view. Improves keyboard accessibility. (Since v12.7.0)", default: "true" },
+    { name: "zIndexMode", type: "ZIndexMode", description: "'raise' elevates selected/connected nodes above others; 'auto' uses DOM order. (Since v12.10.0)", default: "'raise'" },
+    { name: "connectionDragThreshold", type: "number", description: "Pixel distance required before a connection drag registers. Prevents accidental connections on touch devices. (Since v12.8.0)" },
+    { name: "viewport", type: "Viewport", description: "Controlled viewport. When set, ReactFlow does not manage viewport state internally — pair with onViewportChange." },
+    { name: "onViewportChange", type: "(viewport: Viewport) => void", description: "Called on any pan or zoom when using the controlled viewport prop." },
+    { name: "onNodeDragStart", type: "OnNodeDrag", description: "Called when a node drag begins. Also fires when a multi-node selection starts dragging." },
+    { name: "onConnectStart", type: "OnConnectStart", description: "Called when the user begins dragging a connection line from a handle." },
+    { name: "onConnectEnd", type: "OnConnectEnd", description: "Called when the user stops dragging a connection line, whether or not a connection was made. Useful for 'drop on pane to create node' patterns." },
+    { name: "onReconnectStart", type: "(event: MouseEvent, edge: Edge, handleType: HandleType) => void", description: "Called when an edge reconnect drag starts." },
+    { name: "onReconnectEnd", type: "(event: MouseEvent | TouchEvent, edge: Edge, handleType: HandleType) => void", description: "Called when an edge reconnect drag ends, regardless of whether a new connection was made." },
+    { name: "selectionOnDrag", type: "boolean", description: "When true, dragging on the pane creates a selection rectangle instead of panning.", default: "false" },
+    { name: "multiSelectionKeyCode", type: "KeyCode | null", description: "Key for click-adding nodes to the current selection.", default: "'Meta'" },
+    { name: "defaultEdgeOptions", type: "DefaultEdgeOptions", description: "Default options applied to all new edges (type, animated, style, markerEnd, etc.)." },
+    { name: "defaultMarkerColor", type: "string", description: "Default color for edge arrowhead markers.", default: "'#b1b1b7'" },
+    { name: "noPanClassName", type: "string", description: "CSS class for elements that should not trigger viewport panning when dragged.", default: "'nopan'" },
+    { name: "noDragClassName", type: "string", description: "CSS class for elements inside a node that should not trigger node dragging.", default: "'nodrag'" },
+    { name: "paneClickDistance", type: "number", description: "Max pixel distance between mousedown and mouseup to register as a pane click (vs a drag)." },
+    { name: "disableKeyboardA11y", type: "boolean", description: "Disable keyboard accessibility features (arrow key navigation, space/enter to select).", default: "false" },
   ],
   usage: `import { ReactFlow, Background, Controls } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -148,6 +168,10 @@ const backgroundComponent: ApiEntry = {
     { name: "size", type: "number", description: "Size of pattern dots/lines.", default: "1" },
     { name: "color", type: "string", description: "Pattern color." },
     { name: "lineWidth", type: "number", description: "Stroke width for lines/cross variant.", default: "1" },
+    { name: "bgColor", type: "string", description: "Canvas fill color behind the pattern." },
+    { name: "patternClassName", type: "string", description: "CSS class applied to the SVG pattern element. Enables Tailwind color utilities (e.g. 'text-indigo-200')." },
+    { name: "id", type: "string", description: "Unique ID required when rendering multiple stacked Background instances to prevent SVG pattern ID collisions." },
+    { name: "offset", type: "number | [number, number]", description: "Pattern offset from origin.", default: "0" },
   ],
   usage: `<ReactFlow nodes={nodes} edges={edges}>
   <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
@@ -176,6 +200,11 @@ const controlsComponent: ApiEntry = {
     { name: "showInteractive", type: "boolean", description: "Show lock button.", default: "true" },
     { name: "position", type: "PanelPosition", description: "Corner position.", default: "'bottom-left'" },
     { name: "orientation", type: "'horizontal' | 'vertical'", description: "Layout direction.", default: "'vertical'" },
+    { name: "fitViewOptions", type: "FitViewOptions", description: "Options passed to fitView when the fit-view button is clicked." },
+    { name: "onZoomIn", type: "() => void", description: "Called in addition to the built-in zoom-in behavior." },
+    { name: "onZoomOut", type: "() => void", description: "Called in addition to the built-in zoom-out behavior." },
+    { name: "onFitView", type: "() => void", description: "When provided, replaces the built-in fit-view behavior — you must call fitView yourself." },
+    { name: "onInteractiveChange", type: "(interactiveStatus: boolean) => void", description: "Called when the lock button is toggled. Receives the new interactive state." },
   ],
   usage: `<ReactFlow nodes={nodes} edges={edges}>
   <Controls position="bottom-left" />
@@ -207,9 +236,15 @@ const miniMapComponent: ApiEntry = {
     { name: "nodeStrokeColor", type: "string | ((node: Node) => string)", description: "Stroke color of minimap nodes." },
     { name: "nodeStrokeWidth", type: "number", description: "Stroke width.", default: "2" },
     { name: "maskColor", type: "string", description: "Color of the area outside the viewport." },
+    { name: "maskStrokeColor", type: "string", description: "Stroke color of the viewport mask rectangle.", default: "'transparent'" },
+    { name: "maskStrokeWidth", type: "number", description: "Stroke width of the viewport mask rectangle.", default: "1" },
     { name: "position", type: "PanelPosition", description: "Corner position.", default: "'bottom-right'" },
     { name: "pannable", type: "boolean", description: "Allow panning via minimap.", default: "false" },
     { name: "zoomable", type: "boolean", description: "Allow zooming via minimap.", default: "false" },
+    { name: "inversePan", type: "boolean", description: "Inverts pan direction when dragging inside the minimap." },
+    { name: "offsetScale", type: "number", description: "Scales padding around the flow content in the minimap overview.", default: "5" },
+    { name: "nodeComponent", type: "ComponentType<MiniMapNodeProps>", description: "Custom SVG component for minimap nodes. Must render only SVG elements." },
+    { name: "onNodeClick", type: "(event: MouseEvent, node: Node) => void", description: "Callback when a node in the minimap is clicked." },
   ],
   usage: `<ReactFlow nodes={nodes} edges={edges}>
   <MiniMap nodeColor={(n) => n.type === 'input' ? '#6366f1' : '#94a3b8'} pannable zoomable />
@@ -295,13 +330,18 @@ const nodeResizerComponent: ApiEntry = {
   props: [
     { name: "minWidth", type: "number", description: "Minimum width.", default: "10" },
     { name: "minHeight", type: "number", description: "Minimum height.", default: "10" },
-    { name: "maxWidth", type: "number", description: "Maximum width." },
-    { name: "maxHeight", type: "number", description: "Maximum height." },
+    { name: "maxWidth", type: "number", description: "Maximum width.", default: "Number.MAX_VALUE" },
+    { name: "maxHeight", type: "number", description: "Maximum height.", default: "Number.MAX_VALUE" },
     { name: "isVisible", type: "boolean", description: "Control visibility of resize handles.", default: "true" },
     { name: "color", type: "string", description: "Color of resize handles." },
     { name: "handleStyle", type: "CSSProperties", description: "Style the resize handles." },
     { name: "lineStyle", type: "CSSProperties", description: "Style the resize border lines." },
     { name: "keepAspectRatio", type: "boolean", description: "Maintain aspect ratio when resizing.", default: "false" },
+    { name: "autoScale", type: "boolean", description: "Scale handles proportionally with viewport zoom so they remain the same visual size.", default: "true" },
+    { name: "shouldResize", type: "(event: ResizeDragEvent, params: ResizeParamsWithDirection) => boolean", description: "Return false to cancel the resize for a given drag event." },
+    { name: "onResizeStart", type: "OnResizeStart", description: "Called when a resize drag begins." },
+    { name: "onResize", type: "OnResize", description: "Called continuously while resizing. Required in controlled flows to update node dimensions." },
+    { name: "onResizeEnd", type: "OnResizeEnd", description: "Called when a resize drag ends." },
   ],
   usage: `import { NodeResizer } from '@xyflow/react';
 
@@ -424,10 +464,11 @@ const baseEdgeComponent: ApiEntry = {
     "Used internally for all edges. Use inside custom edges to get the invisible helper path and edge label handling for free.",
   importPath: "import { BaseEdge } from '@xyflow/react'",
   props: [
-    { name: "path", type: "string", description: "SVG path string." },
-    { name: "labelX", type: "number", description: "X position of the label." },
-    { name: "labelY", type: "number", description: "Y position of the label." },
+    { name: "path", type: "string", description: "SVG path string. Required." },
     { name: "label", type: "ReactNode", description: "Edge label content." },
+    { name: "labelStyle", type: "CSSProperties", description: "CSS styles for the label element." },
+    { name: "markerStart", type: "string", description: "SVG marker URL for arrowhead at path start. Pass markerStart from EdgeProps." },
+    { name: "markerEnd", type: "string", description: "SVG marker URL for arrowhead at path end. Pass markerEnd from EdgeProps." },
     { name: "interactionWidth", type: "number", description: "Width of invisible click target.", default: "20" },
   ],
   usage: `import { BaseEdge, getStraightPath } from '@xyflow/react';
@@ -571,6 +612,11 @@ const reactFlowProviderComponent: ApiEntry = {
   description:
     "Provides the React Flow context to child components. Required when using hooks like useReactFlow outside of the ReactFlow component.",
   importPath: "import { ReactFlowProvider } from '@xyflow/react'",
+  props: [
+    { name: "initialMinZoom", type: "number", description: "Initial minimum zoom level. Use when ReactFlow is not rendered at provider mount time (e.g. deferred/lazy flows). Since v12.6.0." },
+    { name: "initialMaxZoom", type: "number", description: "Initial maximum zoom level. Since v12.6.0." },
+    { name: "initialFitViewOptions", type: "FitViewOptions", description: "Initial fit-view options for the provider context. Since v12.6.0." },
+  ],
   usage: `import { ReactFlowProvider } from '@xyflow/react';
 
 function App() {
@@ -585,6 +631,7 @@ function App() {
   tips: [
     "If you render <ReactFlow> and need to use hooks like useReactFlow in sibling or parent components, wrap everything in <ReactFlowProvider>.",
     "The <ReactFlow> component creates its own provider internally — you only need <ReactFlowProvider> when using hooks outside <ReactFlow>.",
+    "Use initialMinZoom/initialMaxZoom/initialFitViewOptions (v12.6.0) when ReactFlow is not mounted at the time the provider mounts.",
   ],
   relatedApis: ["ReactFlow", "useReactFlow"],
 };
