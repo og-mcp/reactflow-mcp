@@ -14,6 +14,7 @@ export interface ApiEntry {
   examples: Example[];
   tips?: string[];
   relatedApis?: string[];
+  deprecated?: string;
 }
 
 export interface PropEntry {
@@ -76,6 +77,14 @@ export const PATTERN_SECTIONS = [
   "edge-reconnection",
   "custom-connection-line",
   "auto-layout-on-mount",
+  "computing-flows",
+  "connection-state",
+  "controlled-viewport",
+  "edge-toolbar",
+  "before-delete",
+  "typescript-strict",
+  "accessibility",
+  "mobile-touch",
 ] as const;
 
 export type PatternSection = (typeof PATTERN_SECTIONS)[number];
